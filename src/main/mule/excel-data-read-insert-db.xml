@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:batch="http://www.mulesoft.org/schema/mule/batch"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:file="http://www.mulesoft.org/schema/mule/file" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/batch http://www.mulesoft.org/schema/mule/batch/current/mule-batch.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd">
+	<file:config name="File_Config" doc:name="File Config" doc:id="293a679d-f108-4682-b413-859c191c9645" />
+	<db:config name="Database_Config" doc:name="Database Config" doc:id="c65ae7bc-acfb-4881-a8f7-3a5e1674e48b" >
+		<db:my-sql-connection host="database-3.chtutjabg4gc.ap-northeast-1.rds.amazonaws.com" port="3306" user="admin" password="9333888839" database="jaggu_db" />
+	</db:config>
+	<flow name="excel-data-read-insert-dbFlow" doc:id="9fdb4f8b-dc83-4554-b566-2b43c969fec5" >
+		<http:listener doc:name="Listener" doc:id="87b9bf8c-a582-4108-93ad-4c6bc2a37279" config-ref="HTTP_Listener_config" path="/excel"/>
+		<file:read doc:name="Read" doc:id="2f5034f3-e632-478a-897c-f731535af7e8" config-ref="File_Config" path="C:\Users\User\Desktop\exe.csv"/>
+		<ee:transform doc:name="Transform Message" doc:id="70dab726-bad1-4641-8188-689ebbaaf4fb" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<batch:job jobName="excel-data-read-insert-dbBatch_Job" doc:id="037903be-cd7c-4ed2-bac9-f80e692d1877" blockSize="10">
+			<batch:process-records >
+				<batch:step name="Batch_Step" doc:id="4b9ad8a7-222c-4f4d-80cb-f8a2c8dc7a56" >
+					<batch:aggregator doc:name="Batch Aggregator" doc:id="f04dad5f-cc59-4951-8d97-dec20fad84c7" size="10">
+						<db:bulk-insert doc:name="Bulk insert" doc:id="875deeb7-d50a-4b01-8e57-b13ab756f939" config-ref="Database_Config">
+							<db:sql ><![CDATA[INSERT INTO jaggu_db.dev(id,name,email,address,telephone) values(:id,:name,:email,:address,:telephone)]]></db:sql>
+						</db:bulk-insert>
+					</batch:aggregator>
+				</batch:step>
+				<batch:step name="Batch_Step1" doc:id="10a132ca-e8ae-40ce-9c1c-bec045c417eb" >
+					<batch:aggregator doc:name="Batch Aggregator" doc:id="c9a5ec41-c64d-43c2-808b-8a281e6a800a" size="10">
+						<ee:transform doc:name="Transform Message" doc:id="1bac7a4f-4bbb-44f1-a331-58df0a754deb" >
+							<ee:message >
+								<ee:set-payload ><![CDATA[%dw 2.0
+output application/csv
+---
+payload]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+						<file:write doc:name="Write" doc:id="411fde81-ab6d-4d4e-af44-6f78e416eb12" config-ref="File_Config" path="C:\Users\User\Desktop\exe.csv" mode="APPEND"/>
+					</batch:aggregator>
+				</batch:step>
+			</batch:process-records>
+			<batch:on-complete >
+				<logger level="INFO" doc:name="Logger" doc:id="bdfdd898-3992-4b1b-9d8b-c2df70df284f" message="#[output application/json ---payload]"/>
+			</batch:on-complete>
+		</batch:job>
+		<ee:transform doc:name="Transform Message" doc:id="315413f1-7f29-4555-8123-bd4f397bf9a1" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"status" : "executing the batch job",
+	"message" : "data fetched from location and stared inserting into data... "
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+</mule>
